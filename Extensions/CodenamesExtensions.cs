@@ -12,7 +12,7 @@ namespace Codenames.Extensions
     public static IServiceCollection AddCodenamesServices(this IServiceCollection services,
     IConfiguration config)
     {
-      services.AddScoped<ICodenamesRepo, CodenamesRepo>();
+      services.AddScoped<ISocketHandler, SocketHandler>();
       return services;
     }
   }

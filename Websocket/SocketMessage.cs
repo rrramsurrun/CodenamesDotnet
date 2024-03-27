@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace Codenames.Websocket
 {
-  public class WebSocketMessage
+  public class SocketMessage
   {
     public string header { get; set; }
-    public string body { get; set; }
-    public WebSocketMessage(string header, string body)
+    public Dictionary<string, string> body { get; set; }
+    public SocketMessage(string header, Dictionary<string, string> body)
     {
       this.header = header;
       this.body = body;

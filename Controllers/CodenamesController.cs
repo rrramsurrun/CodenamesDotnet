@@ -12,13 +12,15 @@ using Codenames.Websocket;
 namespace Codenames.Controller
 {
 
-  public class CodenamesSocketController : ControllerBase
+  public class CodenamesController : ControllerBase
   {
 
-    private readonly ICodenamesRepo _codenamesRepo;
-    public CodenamesSocketController(ICodenamesRepo codenamesRepo)
+    private readonly ISocketHandler _codenamesRepo;
+    private readonly MessageHandler messageHandler;
+    public CodenamesController(ISocketHandler codenamesRepo)
     {
       _codenamesRepo = codenamesRepo;
+      messageHandler = new MessageHandler(_codenamesRepo);
     }
 
     [Route("/codenames")]
@@ -26,10 +28,8 @@ namespace Codenames.Controller
     {
       if (HttpContext.WebSockets.IsWebSocketRequest)
       {
-
         using var ws = await HttpContext.WebSockets.AcceptWebSocketAsync();
-        await _codenamesRepo.AddSocket(ws);
-
+        await messageHandler.AddSocket(ws);
       }
       else
       {
