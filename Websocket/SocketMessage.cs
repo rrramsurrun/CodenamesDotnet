@@ -7,11 +7,11 @@ namespace Codenames.Websocket
 {
   public class SocketMessage
   {
-    public string header { get; set; }
+    public string requestType { get; set; }
     public Dictionary<string, string> body { get; set; }
-    public SocketMessage(string header, Dictionary<string, string> body)
+    public SocketMessage(string requestType, Dictionary<string, string> body)
     {
-      this.header = header;
+      this.requestType = requestType;
       this.body = body;
     }
   }

@@ -10,30 +10,55 @@ namespace Codenames.Websocket
 {
   public class MessageHandler
   {
-    private ISocketHandler _codenamesRepo;
+    private ISocketHandler socketHandler;
+
+    private Dictionary<string, string[]> _requestKeys = new Dictionary<string, string[]>(){
+      {"Join Room",["room"]}
+    };
 
     public MessageHandler(ISocketHandler codenamesRepo)
     {
-      _codenamesRepo = codenamesRepo;
+      socketHandler = codenamesRepo;
     }
 
     public async Task AddSocket(WebSocket ws)
     {
-      _codenamesRepo.AddSocket(ws);
+      socketHandler.AddSocket(ws);
       await Echo(ws);
     }
 
     public async Task HandleMessage(WebSocket ws, SocketMessage msg)
     {
-      if (msg.header == "Join Room")
+      var check = CheckValidRequest(ws, msg);
+      if (check != "")
       {
-        _codenamesRepo.JoinRoom(ws, msg.body["room"]);
+        await socketHandler.Emit(ws, ErrorMessage(check));
+      }
+
+      if (msg.requestType == "Join Room")
+      {
+        socketHandler.JoinRoom(ws, msg.body["room"]);
       }
       else
       {
-        await _codenamesRepo.Broadcast(ws, msg);
+        await socketHandler.Broadcast(ws, msg);
       }
     }
+
+    private string CheckValidRequest(WebSocket ws, SocketMessage msg)
+    {
+      if (!_requestKeys.ContainsKey(msg.requestType))
+      {
+        return "The request type is not valid";
+      }
+      var keys = _requestKeys[msg.requestType];
+      if (!keys.All(key => msg.body.ContainsKey(key)))
+      {
+        return "A request type of " + msg.requestType + " requires the keys: " + String.Join(',', keys);
+      }
+      return "";
+    }
+
     private async Task Echo(WebSocket ws)
     {
       while (ws.State == WebSocketState.Open)
@@ -43,7 +68,6 @@ namespace Codenames.Websocket
         var bufferArray = buffer.Array ?? [];
         var message = Encoding.UTF8.GetString(bufferArray, buffer.Offset, buffer.Count);
         message = message.Trim('\0');
-        Console.WriteLine(message);
         try
         {
           var messageObject = JsonSerializer.Deserialize<SocketMessage>(message);
@@ -56,7 +80,7 @@ namespace Codenames.Websocket
         {
           if (e is JsonException)
           {
-            await _codenamesRepo.Emit(ws, ErrorMessage("Messages must be in JSON with the keys of 'header' and 'body'."));
+            await socketHandler.Emit(ws, ErrorMessage("Messages must be in JSON with the keys of 'header' and 'body'."));
           }
           else
           {
@@ -64,11 +88,10 @@ namespace Codenames.Websocket
           }
         }
       }
-
     }
     private SocketMessage ErrorMessage(string msg)
     {
-      return new SocketMessage(header: "Error", body: new Dictionary<string, string>() { { "Message", msg } });
+      return new SocketMessage(requestType: "Error", body: new Dictionary<string, string>() { { "Message", msg } });
     }
   }
 }
