@@ -8,6 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Codenames.Websocket;
+using Codenames.Models;
+using Codenames.Services;
+
 
 namespace Codenames.Controller
 {
@@ -15,12 +18,14 @@ namespace Codenames.Controller
   public class CodenamesController : ControllerBase
   {
 
-    private readonly ISocketHandler _codenamesRepo;
+    private readonly ISocketHandler _socketHandler;
+    private readonly GameService _gameService;
     private readonly MessageHandler messageHandler;
-    public CodenamesController(ISocketHandler codenamesRepo)
+    public CodenamesController(ISocketHandler socketHandler, GameService gameService)
     {
-      _codenamesRepo = codenamesRepo;
-      messageHandler = new MessageHandler(_codenamesRepo);
+      _socketHandler = socketHandler;
+      _gameService = gameService;
+      messageHandler = new MessageHandler(_socketHandler);
     }
 
     [Route("/codenames")]
@@ -35,6 +40,21 @@ namespace Codenames.Controller
       {
         HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
       }
+    }
+
+    [Route("/codenamesnewgame")]
+    [HttpGet]
+    public async Task<ActionResult<Game>> GetNewGame()
+    {
+      var game = new Game(4);
+      await _gameService.CreateAsync(game);
+      return Ok(game);
+    }
+    [Route("/codenamesnewgame/{id}")]
+    [HttpGet]
+    public async Task<ActionResult<Game>> GetExistingGame(string id)
+    {
+      return await _gameService.GetAsync(id);
     }
 
   }
