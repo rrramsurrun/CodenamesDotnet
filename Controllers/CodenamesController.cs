@@ -17,15 +17,12 @@ namespace Codenames.Controller
 
   public class CodenamesController : ControllerBase
   {
-
-    private readonly ISocketHandler _socketHandler;
-    private readonly GameService _gameService;
-    private readonly MessageHandler messageHandler;
+    private readonly GameManager _gameManager;
+    private readonly MessageHandler _messageHandler;
     public CodenamesController(ISocketHandler socketHandler, GameService gameService)
     {
-      _socketHandler = socketHandler;
-      _gameService = gameService;
-      messageHandler = new MessageHandler(_socketHandler);
+      _gameManager = new GameManager(gameService);
+      _messageHandler = new MessageHandler(socketHandler);
     }
 
     [Route("/codenames")]
@@ -34,7 +31,7 @@ namespace Codenames.Controller
       if (HttpContext.WebSockets.IsWebSocketRequest)
       {
         using var ws = await HttpContext.WebSockets.AcceptWebSocketAsync();
-        await messageHandler.AddSocket(ws);
+        await _messageHandler.AddSocket(ws);
       }
       else
       {
@@ -46,15 +43,20 @@ namespace Codenames.Controller
     [HttpGet]
     public async Task<ActionResult<Game>> GetNewGame()
     {
-      var game = new Game(4);
-      await _gameService.CreateAsync(game);
-      return Ok(game);
+      return Ok(await _gameManager.NewGame());
     }
     [Route("/codenamesnewgame/{id}")]
     [HttpGet]
     public async Task<ActionResult<Game>> GetExistingGame(string id)
     {
-      return await _gameService.GetAsync(id);
+      try
+      {
+        return Ok(await _gameManager.LoadGame(id));
+      }
+      catch (Exception e)
+      {
+        return NoContent();
+      }
     }
 
   }
