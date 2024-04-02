@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Codenames.Models;
 
 namespace Codenames.Websocket
 {
@@ -44,11 +45,21 @@ namespace Codenames.Websocket
         if (hashcodes.Contains(socket.GetHashCode())) await Emit(socket, messageObject);
       }
     }
+    public async Task BroadcastGame(Game gameObject)
+    {
+
+      List<int> hashcodes = gameObject.UserIds;
+      //Message all sockets in the same room
+      foreach (var socket in connections)
+      {
+        if (hashcodes.Contains(socket.GetHashCode())) await Emit(socket, gameObject);
+      }
+    }
     public void JoinRoom(WebSocket ws, string room)
     {
       rooms.Add(ws.GetHashCode(), room);
     }
-    public async Task Emit(WebSocket ws, SocketMessage messageObject)
+    public async Task Emit(WebSocket ws, Object messageObject)
     {
       var json = JsonSerializer.Serialize(messageObject);
       var bytes = Encoding.UTF8.GetBytes(json);

@@ -15,9 +15,9 @@ namespace Codenames.Models
     public string Room { get; set; } = "";
     public int PlayerCount { get; set; }
     //User details and votes
-    public List<string> UserIds { get; set; } = [];
-    public List<string> Nicknames { get; set; } = [];
-    public List<bool> ResetGameSurvey { get; set; } = [];
+    public List<int> UserIds { get; set; }
+    public List<string> Nicknames { get; set; }
+    public List<bool> ResetGameSurvey { get; set; }
     //Properties that change between games
     public List<string> Words { get; set; } = [];
     public string FirstTurn { get; set; }
@@ -39,6 +39,19 @@ namespace Codenames.Models
       Random rnd = new Random();
       Turn = rnd.Next(2) == 0 ? 0 : 2;
       FirstTurn = Turn == 0 ? "red" : "blue";
+      UserIds = new List<int>(new int[4]);
+      Nicknames = new List<string>(new string[4]);
+      ResetGameSurvey = new List<bool>(new bool[4]);
+    }
+    public bool SetUser(int role, int userId, string nickname)
+    {
+      if (UserIds[role] == 0)
+      {
+        UserIds[role] = userId;
+        Nicknames[role] = nickname;
+        return true;
+      }
+      return false;
     }
 
   }

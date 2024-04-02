@@ -16,14 +16,19 @@ namespace Codenames.Services
       _gameService = gameService;
     }
 
-    public async Task<Game> NewGame()
+    public async Task<Game> NewGame(int playerCount)
     {
-      var game = new Game(4);
+      var game = new Game(playerCount);
       var words = await _gameService.GetGameWords();
       game.Words = words;
       if (game.PlayerCount == 4) game.Codex4Player = Generate4playerCodex(words, game.FirstTurn);
       if (game.PlayerCount == 2) game.Codex2Player = Generate2playerCodex(words);
       await _gameService.CreateAsync(game);
+      return game;
+    }
+    public async Task<Game> UpdateGame(Game game)
+    {
+      await _gameService.UpdateAsync(game.Id, game);
       return game;
     }
     public async Task<Game?> LoadGame(string id)

@@ -17,12 +17,12 @@ namespace Codenames.Controller
 
   public class CodenamesController : ControllerBase
   {
-    private readonly GameManager _gameManager;
+    private readonly GameManager gameManager;
     private readonly MessageHandler _messageHandler;
     public CodenamesController(ISocketHandler socketHandler, GameService gameService)
     {
-      _gameManager = new GameManager(gameService);
-      _messageHandler = new MessageHandler(socketHandler);
+      gameManager = new GameManager(gameService);
+      _messageHandler = new MessageHandler(socketHandler, gameManager);
     }
 
     [Route("/codenames")]
@@ -39,25 +39,25 @@ namespace Codenames.Controller
       }
     }
 
-    [Route("/codenamesnewgame")]
-    [HttpGet]
-    public async Task<ActionResult<Game>> GetNewGame()
-    {
-      return Ok(await _gameManager.NewGame());
-    }
-    [Route("/codenamesnewgame/{id}")]
-    [HttpGet]
-    public async Task<ActionResult<Game>> GetExistingGame(string id)
-    {
-      try
-      {
-        return Ok(await _gameManager.LoadGame(id));
-      }
-      catch (Exception e)
-      {
-        return NoContent();
-      }
-    }
+    // [Route("/codenamesnewgame")]
+    // [HttpGet]
+    // public async Task<ActionResult<Game>> GetNewGame()
+    // {
+    //   return Ok(await gameManager.NewGame());
+    // }
+    // [Route("/codenamesnewgame/{id}")]
+    // [HttpGet]
+    // public async Task<ActionResult<Game>> GetExistingGame(string id)
+    // {
+    //   try
+    //   {
+    //     return Ok(await gameManager.LoadGame(id));
+    //   }
+    //   catch (Exception e)
+    //   {
+    //     return NoContent();
+    //   }
+    // }
 
   }
 }
