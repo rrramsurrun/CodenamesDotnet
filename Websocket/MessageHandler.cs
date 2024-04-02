@@ -16,7 +16,9 @@ namespace Codenames.Websocket
     private GameManager _gameManager;
 
     private Dictionary<string, string[][]> _requestKeys = new(){
-      {"newGame",[["role","nickname","playercount"],["string","string","integer"]]}
+      {"newGame",[["role","nickname","playercount"],["string","string","integer"]]},
+      {"joinGame",[["role","nickname","gameId"],["string","string","string"]]},
+      {"rejoinGame",[["userId","gameId"],["string","string"]]}
     };
 
     public MessageHandler(ISocketHandler codenamesRepo, GameManager gameManager)
@@ -37,24 +39,55 @@ namespace Codenames.Websocket
       if (InvalidRequestMessage != "")
       {
         await socketHandler.Emit(ws, ErrorMessage(InvalidRequestMessage));
+        return;
       }
 
-
-      if (msg.requestType == "newGame")
+      switch (msg.requestType)
       {
-        await NewGame(ws, msg.body["role"], msg.body["nickname"], msg.body["playercount"]);
-      }
-      else
-      {
-        await socketHandler.Broadcast(ws, msg);
+        case "newGame":
+          await NewGame(ws, msg.body["role"], msg.body["nickname"], msg.body["playercount"]);
+          break;
+        case "joinGame":
+          await FindAndJoinGame(ws, msg.body["role"], msg.body["nickname"], msg.body["gameId"]);
+          break;
+        case "rejoinGame":
+          await RejoinGame(ws, msg.body["userId"], msg.body["gameId"]);
+          break;
       }
     }
 
     private async Task NewGame(WebSocket ws, string role, string nickname, string playerCount)
     {
-      var playerCountInt = Int32.Parse(playerCount);
-      var game = await _gameManager.NewGame(Int32.Parse(playerCount));
+      var game = await _gameManager.NewGame(int.Parse(playerCount));
       await JoinGame(ws, role, nickname, game);
+    }
+    private async Task FindAndJoinGame(WebSocket ws, string role, string nickname, string gameId)
+    {
+      var game = await _gameManager.LoadGame(gameId);
+      if (game is null)
+      {
+        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that ID"));
+        return;
+      }
+      await JoinGame(ws, role, nickname, game);
+    }
+    private async Task RejoinGame(WebSocket ws, string userId, string gameId)
+    {
+      var game = await _gameManager.LoadGame(gameId);
+      if (game is null)
+      {
+        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that ID"));
+        return;
+      }
+      if (!game.OverwriteUser(int.Parse(userId), ws.GetHashCode()))
+      {
+        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that User ID"));
+        return;
+      }
+
+      var updatedGame = await _gameManager.UpdateGame(game);
+      await socketHandler.Emit(ws, updatedGame);
+
     }
 
     private async Task JoinGame(WebSocket ws, string role, string nickname, Game game)

@@ -54,5 +54,13 @@ namespace Codenames.Models
       return false;
     }
 
+    public bool OverwriteUser(int userId, int newUserId)
+    {
+      var i = UserIds.IndexOf(userId);
+      if (i == -1) return false;
+      UserIds[i] = newUserId;
+      return true;
+    }
+
   }
 }

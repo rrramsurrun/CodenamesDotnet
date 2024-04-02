@@ -14,9 +14,9 @@ namespace Codenames.Extensions
     public static IServiceCollection AddCodenamesServices(this IServiceCollection services,
     IConfiguration config)
     {
-      services.AddScoped<ISocketHandler, SocketHandler>();
       services.Configure<GameStoreDatabaseSettings>(config.GetSection("GameStoreDatabase"));
       services.AddSingleton<GameService>();
+      services.AddSingleton<ISocketHandler, SocketHandler>();
       return services;
     }
   }
