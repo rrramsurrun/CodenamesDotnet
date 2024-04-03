@@ -16,7 +16,7 @@ namespace Codenames.Extensions
     {
       services.Configure<GameStoreDatabaseSettings>(config.GetSection("GameStoreDatabase"));
       services.AddSingleton<GameService>();
-      services.AddSingleton<ISocketHandler, SocketHandler>();
+      services.AddSingleton<SocketHandler>();
       return services;
     }
   }

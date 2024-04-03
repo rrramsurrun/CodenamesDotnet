@@ -39,13 +39,33 @@ namespace Codenames.Models
       Random rnd = new Random();
       Turn = rnd.Next(2) == 0 ? 0 : 2;
       FirstTurn = Turn == 0 ? "red" : "blue";
-      UserIds = new List<int>(new int[4]);
-      Nicknames = new List<string>(new string[4]);
-      ResetGameSurvey = new List<bool>(new bool[4]);
+      UserIds = new List<int>(new int[playerCount]);
+      Nicknames = new List<string>(new string[playerCount]);
+      ResetGameSurvey = new List<bool>(new bool[playerCount]);
     }
-    public bool SetUser(int role, int userId, string nickname)
+    public bool SetUser(string roleName, int userId, string nickname)
     {
-      if (UserIds[role] == 0)
+      int role;
+      switch (roleName.ToUpper())
+      {
+        case "RED SPYMASTER":
+          role = 0;
+          break;
+        case "RED OPERATIVE":
+          role = 1;
+          break;
+        case "BLUE SPYMASTER":
+          role = 2;
+          break;
+        case "BLUE OPERATIVE":
+          role = 3;
+          break;
+        default:
+          //Shouldn't happen
+          role = 4;
+          break;
+      }
+      if (UserIds[role] == 0 || UserIds[role] == userId)
       {
         UserIds[role] = userId;
         Nicknames[role] = nickname;
@@ -60,6 +80,20 @@ namespace Codenames.Models
       if (i == -1) return false;
       UserIds[i] = newUserId;
       return true;
+    }
+    public object GetCodex(int userId)
+    {
+      var i = UserIds.IndexOf(userId);
+      if (PlayerCount == 4)
+      {
+        if (i == 0 || i == 2) { return Codex4Player; }
+        else return new Dictionary<string, string>();
+      }
+      else return Codex2Player.ToDictionary(kvp => kvp.Key, kvp => kvp.Value[i]);
+    }
+    public int GetUserRole(int userId)
+    {
+      return UserIds.IndexOf(userId);
     }
 
   }

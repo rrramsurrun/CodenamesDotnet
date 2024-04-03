@@ -12,16 +12,17 @@ namespace Codenames.Websocket
 {
   public class MessageHandler
   {
-    private ISocketHandler socketHandler;
+    private SocketHandler socketHandler;
     private GameManager _gameManager;
 
     private Dictionary<string, string[][]> _requestKeys = new(){
       {"newGame",[["role","nickname","playercount"],["string","string","integer"]]},
       {"joinGame",[["role","nickname","gameId"],["string","string","string"]]},
-      {"rejoinGame",[["userId","gameId"],["string","string"]]}
+      {"rejoinGame",[["userId","gameId"],["string","string"]]},
+      {"findGame",[["gameId"],["string"]]}
     };
 
-    public MessageHandler(ISocketHandler codenamesRepo, GameManager gameManager)
+    public MessageHandler(SocketHandler codenamesRepo, GameManager gameManager)
     {
       socketHandler = codenamesRepo;
       _gameManager = gameManager;
@@ -33,7 +34,7 @@ namespace Codenames.Websocket
       await Echo(ws);
     }
 
-    public async Task HandleMessage(WebSocket ws, SocketMessage msg)
+    public async Task HandleMessage(WebSocket ws, SocketInMessage msg)
     {
       var InvalidRequestMessage = CheckValidRequest(ws, msg);
       if (InvalidRequestMessage != "")
@@ -53,6 +54,7 @@ namespace Codenames.Websocket
         case "rejoinGame":
           await RejoinGame(ws, msg.body["userId"], msg.body["gameId"]);
           break;
+
       }
     }
 
@@ -61,6 +63,7 @@ namespace Codenames.Websocket
       var game = await _gameManager.NewGame(int.Parse(playerCount));
       await JoinGame(ws, role, nickname, game);
     }
+
     private async Task FindAndJoinGame(WebSocket ws, string role, string nickname, string gameId)
     {
       var game = await _gameManager.LoadGame(gameId);
@@ -86,46 +89,25 @@ namespace Codenames.Websocket
       }
 
       var updatedGame = await _gameManager.UpdateGame(game);
-      await socketHandler.Emit(ws, updatedGame);
-
+      await socketHandler.SendJoinData(ws, updatedGame);
+      await socketHandler.SendUpdateData(ws, game);
     }
 
     private async Task JoinGame(WebSocket ws, string role, string nickname, Game game)
     {
-      int roleInt;
-      switch (role.ToUpper())
-      {
-        case "RED SPYMASTER":
-          roleInt = 0;
-          break;
-        case "RED OPERATIVE":
-          roleInt = 1;
-          break;
-        case "BLUE SPYMASTER":
-          roleInt = 2;
-          break;
-        case "BLUE OPERATIVE":
-          roleInt = 3;
-          break;
-        default:
-          //Shouldn't happen
-          roleInt = 4;
-          break;
-      }
-      if (roleInt == 4)
-      {
-        await socketHandler.Emit(ws, ErrorMessage("Could not set user"));
-        return;
-      }
-      if (!game.SetUser(roleInt, ws.GetHashCode(), nickname))
+      //Move this to the 'game' class
+
+      if (!game.SetUser(role, ws.GetHashCode(), nickname))
       {
         await socketHandler.Emit(ws, ErrorMessage("Could not set user"));
       }
+      //
       var updatedGame = await _gameManager.UpdateGame(game);
-      await socketHandler.BroadcastGame(updatedGame);
+      await socketHandler.SendJoinData(ws, updatedGame);
+      await socketHandler.BroadcastUpdateData(game);
     }
 
-    private string CheckValidRequest(WebSocket ws, SocketMessage msg)
+    private string CheckValidRequest(WebSocket ws, SocketInMessage msg)
     {
       if (!_requestKeys.ContainsKey(msg.requestType))
       {
@@ -146,7 +128,7 @@ namespace Codenames.Websocket
         {
           try
           {
-            var intTest = Int32.Parse(val);
+            var intTest = int.Parse(val);
           }
           catch
           {
@@ -168,7 +150,7 @@ namespace Codenames.Websocket
         message = message.Trim('\0');
         try
         {
-          var messageObject = JsonSerializer.Deserialize<SocketMessage>(message);
+          var messageObject = JsonSerializer.Deserialize<SocketInMessage>(message);
           if (messageObject is not null && messageObject.requestType is not null && messageObject.body is not null)
           {
             await HandleMessage(ws, messageObject);
@@ -191,9 +173,9 @@ namespace Codenames.Websocket
         }
       }
     }
-    private SocketMessage ErrorMessage(string msg)
+    private static SocketOutMessage ErrorMessage(string msg)
     {
-      return new SocketMessage(requestType: "Error", body: new Dictionary<string, string>() { { "Message", msg } });
+      return new SocketOutMessage(responseType: "Error", new Dictionary<string, string>() { { "Message", msg } });
     }
   }
 }

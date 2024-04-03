@@ -19,7 +19,7 @@ namespace Codenames.Controller
   {
     private readonly GameManager gameManager;
     private readonly MessageHandler _messageHandler;
-    public CodenamesController(ISocketHandler socketHandler, GameService gameService)
+    public CodenamesController(SocketHandler socketHandler, GameService gameService)
     {
       gameManager = new GameManager(gameService);
       _messageHandler = new MessageHandler(socketHandler, gameManager);
