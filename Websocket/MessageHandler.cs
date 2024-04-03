@@ -55,6 +55,10 @@ namespace Codenames.Websocket
           await RejoinGame(ws, msg.body["userId"], msg.body["gameId"]);
           break;
 
+        case "findGame":
+          await FindGame(ws, msg.body["gameId"]);
+          break;
+
       }
     }
 
@@ -62,6 +66,16 @@ namespace Codenames.Websocket
     {
       var game = await _gameManager.NewGame(int.Parse(playerCount));
       await JoinGame(ws, role, nickname, game);
+    }
+    private async Task FindGame(WebSocket ws, string gameId)
+    {
+      var game = await _gameManager.LoadGame(gameId);
+      if (game is null)
+      {
+        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that ID"));
+        return;
+      }
+      await socketHandler.SendGameDetails(ws, game);
     }
 
     private async Task FindAndJoinGame(WebSocket ws, string role, string nickname, string gameId)

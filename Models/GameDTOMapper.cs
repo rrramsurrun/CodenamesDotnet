@@ -33,5 +33,15 @@ namespace Codenames.Models
         Revealed = game.Revealed
       };
     }
+
+    public static GameDetailsDTO MapToGameDetailsDTO(Game game)
+    {
+      return new GameDetailsDTO
+      {
+        Nicknames = game.Nicknames,
+        GameId = game.Id,
+        PlayerCount = game.PlayerCount,
+      };
+    }
   }
 }

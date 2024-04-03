@@ -45,19 +45,15 @@ namespace Codenames.Websocket
     public async Task SendUpdateData(WebSocket ws, Game game)
     {
       GameUpdateDTO gameUpdate = GameDTOMapper.MapToGameUpdateDTO(game);
-      SocketOutMessage updateGame = new("gameUpdate", gameUpdate);
-      await Emit(ws, updateGame);
+      SocketOutMessage msg = new("gameUpdate", gameUpdate);
+      await Emit(ws, msg);
     }
-    // public async Task BroadcastGame(Game gameObject)
-    // {
-
-    //   List<int> hashcodes = gameObject.UserIds;
-    //   //Message all sockets in the same room
-    //   foreach (var socket in connections)
-    //   {
-    //     if (hashcodes.Contains(socket.GetHashCode())) await Emit(socket, gameObject);
-    //   }
-    // }
+    public async Task SendGameDetails(WebSocket ws, Game game)
+    {
+      GameDetailsDTO gameDetails = GameDTOMapper.MapToGameDetailsDTO(game);
+      SocketOutMessage preGame = new("findGameResponse", gameDetails);
+      await Emit(ws, preGame);
+    }
     public async Task Emit(WebSocket ws, SocketOutMessage msg)
     {
       var json = JsonSerializer.Serialize(msg);

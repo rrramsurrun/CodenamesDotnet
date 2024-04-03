@@ -27,4 +27,10 @@ namespace Codenames.Models
     public string Win { get; set; } = "";
     public List<string> Revealed { get; set; } = [];
   }
+  public class GameDetailsDTO
+  {
+    public string? GameId { get; set; } = "";
+    public List<string> Nicknames { get; set; } = [];
+    public int PlayerCount { get; set; }
+  }
 }
