@@ -21,12 +21,13 @@ namespace Codenames.Models
     public List<string> Words { get; set; } = [];
     public string FirstTurn { get; set; }
 
-    public Dictionary<string, string> Codex4Player { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Codex4Player { get; set; } = [];
 
-    public Dictionary<string, string[]> Codex2Player { get; set; } = new Dictionary<string, string[]>();
+    public Dictionary<string, string[]> Codex2Player { get; set; } = [];
     //Properties that hold game state
-    public List<string> Revealed4Player { get; set; } = [];
+    public List<string> Revealed4Player { get; set; } = new(new string[25]);
     public List<string[]> Revealed2Player { get; set; } = [];
+    public string[] emptyboy { get; set; } = new string[2];
     public string Win { get; set; } = "";
     public int GuessCount { get; set; } = 0;
     public List<Clue> Clues { get; set; } = [];
@@ -41,6 +42,10 @@ namespace Codenames.Models
       UserIds = new List<int>(new int[playerCount]);
       Nicknames = new List<string>(new string[playerCount]);
       ResetGameSurvey = new List<bool>(new bool[playerCount]);
+      if (playerCount == 2)
+      {//Populate empty revealed array
+        for (int i = 0; i < 25; i++) Revealed2Player.Add(new string[2]);
+      }
     }
     public bool SetUser(string roleName, int userId, string nickname)
     {
@@ -191,6 +196,7 @@ namespace Codenames.Models
     {
       int userIndex = UserIds.IndexOf(userId);
       Clues.Add(new Clue(userIndex, clue, clueWordCount));
+      Turn++;
       return true;
     }
     public object GetCodex(int userId)

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Codenames.Models;
+using Newtonsoft.Json;
 
 namespace Codenames.Websocket
 {
@@ -34,7 +35,7 @@ namespace Codenames.Websocket
     public async Task BroadcastUpdateData(Game game)
     {
       GameUpdateDTO gameUpdate = GameDTOMapper.MapToGameUpdateDTO(game);
-      SocketOutMessage updateGame = new("joinGameResponse", gameUpdate);
+      SocketOutMessage updateGame = new("gameUpdate", gameUpdate);
       List<int> hashcodes = game.UserIds;
       //Message all sockets in the same room
       foreach (var socket in connections)
@@ -56,7 +57,7 @@ namespace Codenames.Websocket
     }
     public async Task Emit(WebSocket ws, SocketOutMessage msg)
     {
-      var json = JsonSerializer.Serialize(msg);
+      var json = JsonConvert.SerializeObject(msg);
       var bytes = Encoding.UTF8.GetBytes(json);
       var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
       if (ws.State == WebSocketState.Open)

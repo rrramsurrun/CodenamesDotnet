@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Codenames.Models;
 using Codenames.Helpers;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Codenames.Services
 {
@@ -28,7 +29,10 @@ namespace Codenames.Services
     }
     public async Task<Game> UpdateGame(Game game)
     {
-      await _gameService.UpdateAsync(game.Id, game);
+      if (game.Id is not null)
+      {
+        await _gameService.UpdateAsync(game.Id, game);
+      }
       return game;
     }
     public async Task<Game?> LoadGame(string id)
