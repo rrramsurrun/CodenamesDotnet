@@ -25,7 +25,7 @@ namespace Codenames.Models
     public List<Clue> Clues { get; set; } = [];
     public int Turn { get; set; }
     public string Win { get; set; } = "";
-    public List<string> Revealed { get; set; } = [];
+    public object? Revealed { get; set; }
   }
   public class GameDetailsDTO
   {

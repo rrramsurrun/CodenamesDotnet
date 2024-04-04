@@ -35,6 +35,10 @@ namespace Codenames.Services
     {
       return await _gameService.GetAsync(id);
     }
+    public async Task<Game?> LoadGameByUserId(int userId)
+    {
+      return await _gameService.GetAsyncByUserId(userId);
+    }
     private Dictionary<string, string> Generate4playerCodex(List<string> words, string firstTurn)
     {
       List<string> list = new(words);

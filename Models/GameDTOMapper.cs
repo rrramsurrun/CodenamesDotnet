@@ -30,7 +30,7 @@ namespace Codenames.Models
         Clues = game.Clues,
         Turn = game.Turn,
         Win = game.Win,
-        Revealed = game.Revealed
+        Revealed = game.GetRevealed()
       };
     }
 

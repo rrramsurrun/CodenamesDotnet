@@ -19,7 +19,10 @@ namespace Codenames.Websocket
       {"newGame",[["role","nickname","playercount"],["string","string","integer"]]},
       {"joinGame",[["role","nickname","gameId"],["string","string","string"]]},
       {"rejoinGame",[["userId","gameId"],["string","string"]]},
-      {"findGame",[["gameId"],["string"]]}
+      {"findGame",[["gameId"],["string"]]},
+      {"sendClue",[["userId","clue","clueCount"],["string","string","integer"]]},
+      {"clickWord",[["userId","wordIndex"],["string","integer"]]},
+      {"endTurn",[["userId"],["string"]]},
     };
 
     public MessageHandler(SocketHandler codenamesRepo, GameManager gameManager)
@@ -54,12 +57,75 @@ namespace Codenames.Websocket
         case "rejoinGame":
           await RejoinGame(ws, msg.body["userId"], msg.body["gameId"]);
           break;
-
         case "findGame":
           await FindGame(ws, msg.body["gameId"]);
           break;
+        case "sendClue":
+          await AddClue(ws, msg.body["userId"], msg.body["clue"], msg.body["clueCount"]);
+          break;
+        case "clickWord":
+          await ClickWord(ws, msg.body["userId"], msg.body["wordIndex"]);
+          break;
+        case "endTurn":
+          await EndTurn(ws, msg.body["userId"]);
+          break;
+
 
       }
+    }
+
+    private async Task AddClue(WebSocket ws, string userId, string clue, string clueCount)
+    {
+      int userIdInt = int.Parse(userId);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt);
+      if (game is null) return;
+      game.AddClue(userIdInt, clue, int.Parse(clueCount));
+      var updatedGame = await _gameManager.UpdateGame(game);
+      await socketHandler.SendUpdateData(ws, updatedGame);
+    }
+
+    private async Task ClickWord(WebSocket ws, string userId, string wordIndex)
+    {
+      int userIdInt = int.Parse(userId);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt);
+      if (game is null) return;
+      game.ClickWord(userIdInt, int.Parse(wordIndex));
+      var updatedGame = await _gameManager.UpdateGame(game);
+      await socketHandler.SendUpdateData(ws, updatedGame);
+    }
+
+    private async Task EndTurn(WebSocket ws, string userId)
+    {
+      int userIdInt = int.Parse(userId);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt);
+      if (game is null) return;
+      game.EndGuessing();
+      var updatedGame = await _gameManager.UpdateGame(game);
+      await socketHandler.SendUpdateData(ws, updatedGame);
+    }
+    private async Task<bool> CheckTurn(WebSocket ws, Game game, int userId)
+    {
+      if (!game.CheckTurn(userId))
+      {
+        await socketHandler.Emit(ws, ErrorMessage("It is not your turn"));
+        return false;
+      }
+      return true;
+    }
+    private async Task<Game?> FindGameByUserIdCheckTurn(WebSocket ws, int userId)
+    {
+      var game = await _gameManager.LoadGameByUserId(userId);
+      if (game is null)
+      {
+        await socketHandler.Emit(ws, ErrorMessage("Could not find a using that User ID"));
+        return null;
+      }
+      if (!game.CheckTurn(userId))
+      {
+        await socketHandler.Emit(ws, ErrorMessage("It is not your turn"));
+        return null;
+      }
+      return game;
     }
 
     private async Task NewGame(WebSocket ws, string role, string nickname, string playerCount)

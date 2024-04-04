@@ -1,7 +1,6 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using Codenames.Models;
-using System.Text.Json.Serialization;
 
 namespace Codenames.Models
 {
@@ -21,18 +20,18 @@ namespace Codenames.Models
     //Properties that change between games
     public List<string> Words { get; set; } = [];
     public string FirstTurn { get; set; }
-    [JsonIgnore]
+
     public Dictionary<string, string> Codex4Player { get; set; } = new Dictionary<string, string>();
-    [JsonIgnore]
+
     public Dictionary<string, string[]> Codex2Player { get; set; } = new Dictionary<string, string[]>();
     //Properties that hold game state
-    public List<string> Revealed { get; set; } = [];
+    public List<string> Revealed4Player { get; set; } = [];
+    public List<string[]> Revealed2Player { get; set; } = [];
     public string Win { get; set; } = "";
-    public int TurnNo { get; set; } = 0;
+    public int GuessCount { get; set; } = 0;
     public List<Clue> Clues { get; set; } = [];
     public int Turn { get; set; }
-    [BsonIgnore]
-    public object Codex { get { if (PlayerCount == 4) { return Codex4Player; } else return Codex2Player; } }
+
     public Game(int playerCount)
     {
       this.PlayerCount = playerCount;
@@ -81,15 +80,133 @@ namespace Codenames.Models
       UserIds[i] = newUserId;
       return true;
     }
+    public bool CheckTurn(int userId)
+    {
+      int i = UserIds.IndexOf(userId);
+      if (UserIds.IndexOf(userId) != Turn) return false;
+      return true;
+    }
+    public void EndGuessing()
+    {
+      Turn = (Turn + 1) % PlayerCount;
+      GuessCount++;
+    }
+    public bool ClickWord(int userId, int wordIndex)
+    {
+      int userIndex = UserIds.IndexOf(userId);
+      //Check word exists, then find
+      if (wordIndex > 24) return false;
+      string word = Words[wordIndex];
+      string color = "";
+      //4 player logic
+      if (PlayerCount == 4)
+      {
+        color = Codex4Player[word];
+        //Add clue to stack
+        Clues[GuessCount].clueGuesses.Add(word);
+        //Update revealed
+        Revealed4Player[userIndex] = color;
+        //Check action depending on word color        
+        if (color == "black")
+        {//clicked assassin card          
+          Win = Turn == 1 ? "blue" : "red";
+          PopulateRevealed();
+        }
+        else if (color == "cream"
+        || color == "blue" && Turn == 1
+        || color == "red" && Turn == 3)
+        {//Clicked other team/civilian card          
+          EndGuessing();
+        }
+        //Revealing all of one teams cards results in a win
+        if (Win == "")
+        {
+          CheckWinStatus4Player("blue");
+          CheckWinStatus4Player("red");
+        }
+      }
+      //2 player logic
+      if (PlayerCount == 2)
+      {
+        color = Codex2Player[word][userIndex];
+        //Add clue to stack
+        Clues[GuessCount].clueGuesses.Add(word);
+        //Revealed is a mirror image of the codex
+        Revealed2Player[wordIndex][Math.Abs(userIndex - 1)] = color;
+        //Check action depending on word color
+        if (color == "black")
+        {//Clicked Assassin card
+          Win = "lose";
+          PopulateRevealed();
+        }
+        else if (color == "cream")
+        {//Clicked civillian card
+          EndGuessing();
+        }
+        else if (color == "green")
+        {//
+          CheckWinStatus2Player();
+        }
+      }
+
+      return true;
+    }
+
+    private void PopulateRevealed()
+    {//At game end populate the revealed array
+      if (PlayerCount == 4)
+      {
+        for (int i = 0; i < Words.Count; i++)
+        {
+          Revealed4Player[i] = Codex4Player[Words[i]];
+        }
+      }
+      if (PlayerCount == 2)
+      {
+        for (int i = 0; i < Words.Count; i++)
+        {
+          Revealed2Player[i][0] = Codex2Player[Words[i]][0];
+          Revealed2Player[i][1] = Codex2Player[Words[i]][1];
+        }
+      }
+    }
+    private void CheckWinStatus4Player(string color)
+    {
+      //First team has 9 cards to uncover, other team has 8
+      if (Revealed4Player.Where(x => x.Equals(color)).Count() == (FirstTurn == color ? 9 : 8))
+      { //All cards revealed        
+        Win = color;
+        PopulateRevealed();
+      };
+    }
+    private void CheckWinStatus2Player()
+    {
+      if (Revealed2Player.Where(x => x[0].Equals("green") || x[1].Equals("green")).Count() == 15)
+      {
+        Win = "win";
+        PopulateRevealed();
+      }
+    }
+    public bool AddClue(int userId, string clue, int clueWordCount)
+    {
+      int userIndex = UserIds.IndexOf(userId);
+      Clues.Add(new Clue(userIndex, clue, clueWordCount));
+      return true;
+    }
     public object GetCodex(int userId)
     {
-      var i = UserIds.IndexOf(userId);
+      int i = UserIds.IndexOf(userId);
       if (PlayerCount == 4)
       {
         if (i == 0 || i == 2) { return Codex4Player; }
         else return new Dictionary<string, string>();
       }
       else return Codex2Player.ToDictionary(kvp => kvp.Key, kvp => kvp.Value[i]);
+    }
+    public object GetRevealed()
+    {
+      if (PlayerCount == 4) return Revealed4Player;
+      return Revealed2Player;
     }
     public int GetUserRole(int userId)
     {

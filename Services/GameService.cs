@@ -25,6 +25,9 @@ namespace Codenames.Services
     public async Task<Game?> GetAsync(string id) =>
     await _gameCollection.Find(x => x.Id == id).FirstOrDefaultAsync();
 
+    public async Task<Game?> GetAsyncByUserId(int userId) =>
+    await _gameCollection.Find(x => x.UserIds.Contains(userId)).FirstOrDefaultAsync();
+
     public async Task<Game> CreateAsync(Game newGame)
     {
       await _gameCollection.InsertOneAsync(newGame);
