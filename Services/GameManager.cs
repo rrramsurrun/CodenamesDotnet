@@ -20,12 +20,26 @@ namespace Codenames.Services
     public async Task<Game> NewGame(int playerCount)
     {
       var game = new Game(playerCount);
+      await SetBoard(game);
+      await _gameService.CreateAsync(game);
+      return game;
+    }
+    public async Task<Game> RestartGame(Game oldGame)
+    {
+      var game = new Game(oldGame.PlayerCount);
+      await SetBoard(game);
+      game.UserIds = oldGame.UserIds;
+      game.Nicknames = oldGame.Nicknames;
+      game.Id = oldGame.Id;
+      await _gameService.UpdateAsync(oldGame.Id!, game);
+      return game;
+    }
+    private async Task SetBoard(Game game)
+    {
       var words = await _gameService.GetGameWords();
       game.Words = words;
       if (game.PlayerCount == 4) game.Codex4Player = Generate4playerCodex(words, game.FirstTurn);
       if (game.PlayerCount == 2) game.Codex2Player = Generate2playerCodex(words);
-      await _gameService.CreateAsync(game);
-      return game;
     }
     public async Task<Game> UpdateGame(Game game)
     {
@@ -37,7 +51,12 @@ namespace Codenames.Services
     }
     public async Task<Game?> LoadGame(string id)
     {
-      return await _gameService.GetAsync(id);
+      try
+      { return await _gameService.GetAsync(id); }
+      catch
+      {
+        return null;
+      }
     }
     public async Task<Game?> LoadGameByUserId(int userId)
     {

@@ -32,7 +32,7 @@ namespace Codenames.Websocket
       SocketOutMessage joinGame = new("joinGameResponse", gameJoin);
       await Emit(ws, joinGame);
     }
-    public async Task BroadcastUpdateData(Game game)
+    public async Task BroadcastUpdateData(Game game, string header = "gameUpdate")
     {
       GameUpdateDTO gameUpdate = GameDTOMapper.MapToGameUpdateDTO(game);
       SocketOutMessage updateGame = new("gameUpdate", gameUpdate);
@@ -41,6 +41,20 @@ namespace Codenames.Websocket
       foreach (var socket in connections)
       {
         if (hashcodes.Contains(socket.GetHashCode())) await Emit(socket, updateGame);
+      }
+    }
+    public async Task BroadcastRestartData(Game game)
+    {
+      List<int> hashcodes = game.UserIds;
+      //Message all sockets in the same room
+      foreach (var socket in connections)
+      {
+        if (hashcodes.Contains(socket.GetHashCode()))
+        {
+          GameResetDTO resetGame = GameDTOMapper.MapToGameResetDTO(game, socket.GetHashCode());
+          SocketOutMessage updateGame = new("restartGame", resetGame);
+          await Emit(socket, updateGame);
+        }
       }
     }
     public async Task SendUpdateData(WebSocket ws, Game game)
@@ -55,6 +69,15 @@ namespace Codenames.Websocket
       SocketOutMessage preGame = new("findGameResponse", gameDetails);
       await Emit(ws, preGame);
     }
+    public async Task SendLeaveConfirmation(WebSocket ws)
+    {
+      SocketOutMessage leaveGame = new("leaveGameResponse", new Dictionary<string, int>() { { "userId", ws.GetHashCode() } });
+      await Emit(ws, leaveGame);
+    }
+    public async Task SendErrorMessage(WebSocket ws, string msg)
+    {
+      await Emit(ws, ErrorMessage(msg));
+    }
     public async Task Emit(WebSocket ws, SocketOutMessage msg)
     {
       var json = JsonConvert.SerializeObject(msg);
@@ -62,6 +85,10 @@ namespace Codenames.Websocket
       var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
       if (ws.State == WebSocketState.Open)
         await ws.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
+    }
+    private static SocketOutMessage ErrorMessage(string msg)
+    {
+      return new SocketOutMessage(responseType: "Error", new Dictionary<string, string>() { { "Message", msg } });
     }
 
   }

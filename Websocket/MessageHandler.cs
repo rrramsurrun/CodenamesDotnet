@@ -23,6 +23,10 @@ namespace Codenames.Websocket
       {"sendClue",[["userId","clue","clueCount"],["string","string","integer"]]},
       {"clickWord",[["userId","wordIndex"],["string","integer"]]},
       {"endTurn",[["userId"],["string"]]},
+      {"leaveGame",[["userId"],["string"]]},
+      {"resetGame",[["userId"],["string"]]},
+      {"resetGameConfirm",[["userId"],["string"]]},
+      {"resetGameReject",[["userId"],["string"]]},
     };
 
     public MessageHandler(SocketHandler codenamesRepo, GameManager gameManager)
@@ -37,12 +41,12 @@ namespace Codenames.Websocket
       await Echo(ws);
     }
 
-    public async Task HandleMessage(WebSocket ws, SocketInMessage msg)
+    public async Task RouteMessage(WebSocket ws, SocketInMessage msg)
     {
       var InvalidRequestMessage = CheckValidRequest(ws, msg);
       if (InvalidRequestMessage != "")
       {
-        await socketHandler.Emit(ws, ErrorMessage(InvalidRequestMessage));
+        await socketHandler.SendErrorMessage(ws, InvalidRequestMessage);
         return;
       }
 
@@ -69,15 +73,69 @@ namespace Codenames.Websocket
         case "endTurn":
           await EndTurn(ws, msg.body["userId"]);
           break;
-
-
+        case "leaveGame":
+          await LeaveGame(ws, msg.body["userId"]);
+          break;
+        case "resetGame":
+          await ResetGame(ws, msg.body["userId"], true);
+          break;
+        case "resetGameConfirm":
+          await ResetGame(ws, msg.body["userId"], false);
+          break;
+        case "resetGameReject":
+          await RejectReset(ws, msg.body["userId"]);
+          break;
       }
+    }
+
+    private async Task RejectReset(WebSocket ws, string userId)
+    {
+      int userIdInt = int.Parse(userId);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt, false);
+      if (game is null) return;
+      game.NullifyResetSurvey();
+      var updatedGame = await _gameManager.UpdateGame(game);
+      await socketHandler.BroadcastUpdateData(updatedGame, "rejectResetUpdate");
+    }
+
+    private async Task ResetGame(WebSocket ws, string userId, bool firstResetRequest)
+    {
+      int userIdInt = int.Parse(userId);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt, false);
+      if (game is null) return;
+      if (!game.CheckValidResetRequest(userIdInt, firstResetRequest))
+      {
+        await socketHandler.SendErrorMessage(ws, "Somebody rejected the reset request");
+      };
+      if (game.ConfirmAllReset())
+      {
+        var newGame = await _gameManager.RestartGame(game);
+        await socketHandler.BroadcastRestartData(newGame);
+        await socketHandler.BroadcastUpdateData(newGame);
+      }
+      else
+      {
+        var updatedGame = await _gameManager.UpdateGame(game);
+        await socketHandler.BroadcastUpdateData(updatedGame);
+      }
+
+    }
+
+    private async Task LeaveGame(WebSocket ws, string userId)
+    {
+      int userIdInt = int.Parse(userId);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt, false);
+      if (game is null) return;
+      game.DeleteUser(userIdInt);
+      var updatedGame = await _gameManager.UpdateGame(game);
+      await socketHandler.BroadcastUpdateData(updatedGame);
+      await socketHandler.SendLeaveConfirmation(ws);
     }
 
     private async Task AddClue(WebSocket ws, string userId, string clue, string clueCount)
     {
       int userIdInt = int.Parse(userId);
-      var game = await FindGameByUserIdCheckTurn(ws, userIdInt);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt, true);
       if (game is null) return;
       game.AddClue(userIdInt, clue, int.Parse(clueCount));
       var updatedGame = await _gameManager.UpdateGame(game);
@@ -87,7 +145,7 @@ namespace Codenames.Websocket
     private async Task ClickWord(WebSocket ws, string userId, string wordIndex)
     {
       int userIdInt = int.Parse(userId);
-      var game = await FindGameByUserIdCheckTurn(ws, userIdInt);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt, true);
       if (game is null) return;
       game.ClickWord(userIdInt, int.Parse(wordIndex));
       var updatedGame = await _gameManager.UpdateGame(game);
@@ -97,32 +155,24 @@ namespace Codenames.Websocket
     private async Task EndTurn(WebSocket ws, string userId)
     {
       int userIdInt = int.Parse(userId);
-      var game = await FindGameByUserIdCheckTurn(ws, userIdInt);
+      var game = await FindGameByUserIdCheckTurn(ws, userIdInt, true);
       if (game is null) return;
       game.EndGuessing();
       var updatedGame = await _gameManager.UpdateGame(game);
       await socketHandler.SendUpdateData(ws, updatedGame);
     }
-    private async Task<bool> CheckTurn(WebSocket ws, Game game, int userId)
-    {
-      if (!game.CheckTurn(userId))
-      {
-        await socketHandler.Emit(ws, ErrorMessage("It is not your turn"));
-        return false;
-      }
-      return true;
-    }
-    private async Task<Game?> FindGameByUserIdCheckTurn(WebSocket ws, int userId)
+    private async Task<Game?> FindGameByUserIdCheckTurn(WebSocket ws, int userId, bool turnSensitive)
     {
       var game = await _gameManager.LoadGameByUserId(userId);
       if (game is null)
       {
-        await socketHandler.Emit(ws, ErrorMessage("Could not find a using that User ID"));
+        await socketHandler.SendErrorMessage(ws, "Could not find a game using that User ID");
         return null;
       }
-      if (!game.CheckTurn(userId))
+
+      if (turnSensitive && !game.CheckTurn(userId))
       {
-        await socketHandler.Emit(ws, ErrorMessage("It is not your turn"));
+        await socketHandler.SendErrorMessage(ws, "It is not your turn");
         return null;
       }
       return game;
@@ -138,7 +188,7 @@ namespace Codenames.Websocket
       var game = await _gameManager.LoadGame(gameId);
       if (game is null)
       {
-        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that ID"));
+        await socketHandler.SendErrorMessage(ws, "Could not find a game with that ID");
         return;
       }
       await socketHandler.SendGameDetails(ws, game);
@@ -149,7 +199,7 @@ namespace Codenames.Websocket
       var game = await _gameManager.LoadGame(gameId);
       if (game is null)
       {
-        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that ID"));
+        await socketHandler.SendErrorMessage(ws, "Could not find a game with that ID");
         return;
       }
       await JoinGame(ws, role, nickname, game);
@@ -159,12 +209,12 @@ namespace Codenames.Websocket
       var game = await _gameManager.LoadGame(gameId);
       if (game is null)
       {
-        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that ID"));
+        await socketHandler.SendErrorMessage(ws, "Could not find a game with that ID");
         return;
       }
       if (!game.OverwriteUser(int.Parse(userId), ws.GetHashCode()))
       {
-        await socketHandler.Emit(ws, ErrorMessage("Could not find a game with that User ID"));
+        await socketHandler.SendErrorMessage(ws, "Could not find a game with that User ID");
         return;
       }
 
@@ -179,7 +229,8 @@ namespace Codenames.Websocket
 
       if (!game.SetUser(role, ws.GetHashCode(), nickname))
       {
-        await socketHandler.Emit(ws, ErrorMessage("Could not set user"));
+        await socketHandler.SendErrorMessage(ws, "The role of " + role + " is taken");
+        return;
       }
       //
       var updatedGame = await _gameManager.UpdateGame(game);
@@ -233,18 +284,18 @@ namespace Codenames.Websocket
           var messageObject = JsonSerializer.Deserialize<SocketInMessage>(message);
           if (messageObject is not null && messageObject.requestType is not null && messageObject.body is not null)
           {
-            await HandleMessage(ws, messageObject);
+            await RouteMessage(ws, messageObject);
           }
           else
           {
-            await socketHandler.Emit(ws, ErrorMessage("Messages must be in JSON with the keys of \'header\' and \'body\'."));
+            await socketHandler.SendErrorMessage(ws, "Messages must be in JSON with the keys of \'header\' and \'body\'.");
           }
         }
         catch (Exception e)
         {
           if (e is JsonException)
           {
-            await socketHandler.Emit(ws, ErrorMessage("Messages must be in JSON with the keys of \'header\' and \'body\'."));
+            await socketHandler.SendErrorMessage(ws, "Messages must be in JSON with the keys of \'header\' and \'body\'.");
           }
           else
           {
@@ -252,10 +303,6 @@ namespace Codenames.Websocket
           }
         }
       }
-    }
-    private static SocketOutMessage ErrorMessage(string msg)
-    {
-      return new SocketOutMessage(responseType: "Error", new Dictionary<string, string>() { { "Message", msg } });
     }
   }
 }

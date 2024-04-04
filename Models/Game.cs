@@ -11,7 +11,6 @@ namespace Codenames.Models
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
     public string? Id { get; set; }
-    public string Room { get; set; } = "";
     public int PlayerCount { get; set; }
     //User details and votes
     public List<int> UserIds { get; set; }
@@ -20,14 +19,12 @@ namespace Codenames.Models
     //Properties that change between games
     public List<string> Words { get; set; } = [];
     public string FirstTurn { get; set; }
-
     public Dictionary<string, string> Codex4Player { get; set; } = [];
 
     public Dictionary<string, string[]> Codex2Player { get; set; } = [];
     //Properties that hold game state
     public List<string> Revealed4Player { get; set; } = new(new string[25]);
     public List<string[]> Revealed2Player { get; set; } = [];
-    public string[] emptyboy { get; set; } = new string[2];
     public string Win { get; set; } = "";
     public int GuessCount { get; set; } = 0;
     public List<Clue> Clues { get; set; } = [];
@@ -83,6 +80,13 @@ namespace Codenames.Models
       var i = UserIds.IndexOf(userId);
       if (i == -1) return false;
       UserIds[i] = newUserId;
+      return true;
+    }
+    public bool DeleteUser(int userId)
+    {
+      var i = UserIds.IndexOf(userId);
+      if (i == -1) return false;
+      UserIds[i] = 0;
       return true;
     }
     public bool CheckTurn(int userId)
@@ -218,6 +222,28 @@ namespace Codenames.Models
     {
       return UserIds.IndexOf(userId);
     }
+    public bool CheckValidResetRequest(int userId, bool firstResetRequest)
+    {
+      int i = UserIds.IndexOf(userId);
+      int resetRequestCount = ResetGameSurvey.Where(x => x.Equals(true)).Count();
 
+      //If this is an initial reset request, the count should be 0
+      //If it is a follow up request the count should be greater than 0
+      if ((firstResetRequest && resetRequestCount == 0)
+      || (!firstResetRequest && resetRequestCount > 0))
+      {
+        ResetGameSurvey[i] = true;
+        return true;
+      }
+      return false;
+    }
+    public bool ConfirmAllReset()
+    {
+      return ResetGameSurvey.Where(x => x.Equals(true)).Count() == UserIds.Where(x => !x.Equals(0)).Count();
+    }
+    public void NullifyResetSurvey()
+    {
+      ResetGameSurvey = new List<bool>(new bool[PlayerCount]);
+    }
   }
 }

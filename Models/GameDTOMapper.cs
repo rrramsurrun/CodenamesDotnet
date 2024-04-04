@@ -12,7 +12,6 @@ namespace Codenames.Models
       return new GameJoinDTO
       {
         GameId = game.Id,
-        Room = game.Room,
         PlayerCount = game.PlayerCount,
         UserId = userId,
         Role = game.GetUserRole(userId),
@@ -41,6 +40,15 @@ namespace Codenames.Models
         Nicknames = game.Nicknames,
         GameId = game.Id,
         PlayerCount = game.PlayerCount,
+      };
+    }
+    public static GameResetDTO MapToGameResetDTO(Game game, int userId)
+    {
+      return new GameResetDTO
+      {
+        Words = game.Words,
+        Codex = game.GetCodex(userId),
+        FirstTurn = game.FirstTurn
       };
     }
   }
