@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Codenames.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace Codenames.Websocket
 {
@@ -29,18 +30,22 @@ namespace Codenames.Websocket
     public async Task SendJoinData(WebSocket ws, Game game)
     {
       GameJoinDTO gameJoin = GameDTOMapper.MapToGameJoinDTO(game, ws.GetHashCode());
-      SocketOutMessage joinGame = new("joinGameResponse", gameJoin);
+      SocketOutMessage joinGame = new("joinGame", gameJoin);
       await Emit(ws, joinGame);
     }
-    public async Task BroadcastUpdateData(Game game, string header = "gameUpdate")
+    public async Task BroadcastUpdateData(Game game, string header = "updateGame")
     {
-      GameUpdateDTO gameUpdate = GameDTOMapper.MapToGameUpdateDTO(game);
-      SocketOutMessage updateGame = new("gameUpdate", gameUpdate);
+      GameUpdateDTO updateGameDTO = GameDTOMapper.MapToGameUpdateDTO(game);
+      SocketOutMessage updateGame = new("updateGame", updateGameDTO);
       List<int> hashcodes = game.UserIds;
       //Message all sockets in the same room
       foreach (var socket in connections)
       {
-        if (hashcodes.Contains(socket.GetHashCode())) await Emit(socket, updateGame);
+        if (hashcodes.Contains(socket.GetHashCode()))
+        {
+          Console.WriteLine("Broadcasting update to " + socket.GetHashCode());
+          await Emit(socket, updateGame);
+        }
       }
     }
     public async Task BroadcastRestartData(Game game)
@@ -52,7 +57,7 @@ namespace Codenames.Websocket
         if (hashcodes.Contains(socket.GetHashCode()))
         {
           GameResetDTO resetGame = GameDTOMapper.MapToGameResetDTO(game, socket.GetHashCode());
-          SocketOutMessage updateGame = new("restartGame", resetGame);
+          SocketOutMessage updateGame = new("resetGame", resetGame);
           await Emit(socket, updateGame);
         }
       }
@@ -60,35 +65,40 @@ namespace Codenames.Websocket
     public async Task SendUpdateData(WebSocket ws, Game game)
     {
       GameUpdateDTO gameUpdate = GameDTOMapper.MapToGameUpdateDTO(game);
-      SocketOutMessage msg = new("gameUpdate", gameUpdate);
+      SocketOutMessage msg = new("updateGame", gameUpdate);
       await Emit(ws, msg);
     }
     public async Task SendGameDetails(WebSocket ws, Game game)
     {
       GameDetailsDTO gameDetails = GameDTOMapper.MapToGameDetailsDTO(game);
-      SocketOutMessage preGame = new("findGameResponse", gameDetails);
+      SocketOutMessage preGame = new("findGame", gameDetails);
       await Emit(ws, preGame);
     }
     public async Task SendLeaveConfirmation(WebSocket ws)
     {
-      SocketOutMessage leaveGame = new("leaveGameResponse", new Dictionary<string, int>() { { "userId", ws.GetHashCode() } });
+      SocketOutMessage leaveGame = new("leaveGame", new Dictionary<string, int>() { { "userId", ws.GetHashCode() } });
       await Emit(ws, leaveGame);
     }
-    public async Task SendErrorMessage(WebSocket ws, string msg)
+    public async Task SendErrorMessage(WebSocket ws, string errorType, string msg)
     {
-      await Emit(ws, ErrorMessage(msg));
+      await Emit(ws, ErrorMessage(errorType, msg));
     }
     public async Task Emit(WebSocket ws, SocketOutMessage msg)
     {
-      var json = JsonConvert.SerializeObject(msg);
+      var json = JsonConvert.SerializeObject(
+      msg,
+      new JsonSerializerSettings
+      {
+        ContractResolver = new CamelCasePropertyNamesContractResolver()
+      });
       var bytes = Encoding.UTF8.GetBytes(json);
       var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
       if (ws.State == WebSocketState.Open)
         await ws.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
     }
-    private static SocketOutMessage ErrorMessage(string msg)
+    private static SocketOutMessage ErrorMessage(string errorType, string msg)
     {
-      return new SocketOutMessage(responseType: "Error", new Dictionary<string, string>() { { "Message", msg } });
+      return new SocketOutMessage(responseType: errorType, new Dictionary<string, string>() { { "Message", msg } });
     }
 
   }

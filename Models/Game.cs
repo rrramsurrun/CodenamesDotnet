@@ -23,7 +23,7 @@ namespace Codenames.Models
 
     public Dictionary<string, string[]> Codex2Player { get; set; } = [];
     //Properties that hold game state
-    public List<string> Revealed4Player { get; set; } = new(new string[25]);
+    public List<string> Revealed4Player { get; set; } = [];
     public List<string[]> Revealed2Player { get; set; } = [];
     public string Win { get; set; } = "";
     public int GuessCount { get; set; } = 0;
@@ -41,7 +41,11 @@ namespace Codenames.Models
       ResetGameSurvey = new List<bool>(new bool[playerCount]);
       if (playerCount == 2)
       {//Populate empty revealed array
-        for (int i = 0; i < 25; i++) Revealed2Player.Add(new string[2]);
+        for (int i = 0; i < 25; i++) Revealed2Player.Add(["", ""]);
+      }
+      else
+      {
+        for (int i = 0; i < 25; i++) Revealed4Player.Add("");
       }
     }
     public bool SetUser(string roleName, int userId, string nickname)
@@ -50,9 +54,11 @@ namespace Codenames.Models
       switch (roleName.ToUpper())
       {
         case "RED SPYMASTER":
+        case "GREEN LEFT":
           role = 0;
           break;
         case "RED OPERATIVE":
+        case "GREEN RIGHT":
           role = 1;
           break;
         case "BLUE SPYMASTER":
@@ -87,17 +93,25 @@ namespace Codenames.Models
       var i = UserIds.IndexOf(userId);
       if (i == -1) return false;
       UserIds[i] = 0;
+      Nicknames[i] = "";
       return true;
     }
     public bool CheckTurn(int userId)
     {
       int i = UserIds.IndexOf(userId);
-      if (UserIds.IndexOf(userId) != Turn) return false;
+      if (PlayerCount == 4)
+      {
+        if (i != Turn) return false;
+      }
+      if (PlayerCount == 2)
+      {
+        if ((i == 0 && Turn != 0 && Turn != 3) || (i == 1 && Turn != 1 && Turn != 2)) return false;
+      }
       return true;
     }
     public void EndGuessing()
     {
-      Turn = (Turn + 1) % PlayerCount;
+      Turn = (Turn + 1) % 4;
       GuessCount++;
     }
     public bool ClickWord(int userId, int wordIndex)
@@ -114,7 +128,7 @@ namespace Codenames.Models
         //Add clue to stack
         Clues[GuessCount].clueGuesses.Add(word);
         //Update revealed
-        Revealed4Player[userIndex] = color;
+        Revealed4Player[wordIndex] = color;
         //Check action depending on word color        
         if (color == "black")
         {//clicked assassin card          
@@ -137,11 +151,12 @@ namespace Codenames.Models
       //2 player logic
       if (PlayerCount == 2)
       {
-        color = Codex2Player[word][userIndex];
+        int otherUser = userIndex == 0 ? 1 : 0;
+        color = Codex2Player[word][otherUser];
         //Add clue to stack
         Clues[GuessCount].clueGuesses.Add(word);
-        //Revealed is a mirror image of the codex
-        Revealed2Player[wordIndex][Math.Abs(userIndex - 1)] = color;
+        //Revealed is a partial version of the codex
+        Revealed2Player[wordIndex][otherUser] = color;
         //Check action depending on word color
         if (color == "black")
         {//Clicked Assassin card
@@ -154,6 +169,7 @@ namespace Codenames.Models
         }
         else if (color == "green")
         {//
+          Revealed2Player[wordIndex][Math.Abs(userIndex)] = color;
           CheckWinStatus2Player();
         }
       }
@@ -190,7 +206,8 @@ namespace Codenames.Models
     }
     private void CheckWinStatus2Player()
     {
-      if (Revealed2Player.Where(x => x[0].Equals("green") || x[1].Equals("green")).Count() == 15)
+      Console.WriteLine(Revealed2Player);
+      if (Revealed2Player.Where(x => x[0].Equals("green") || x[1].Equals("green")).Count() == 14)
       {
         Win = "win";
         PopulateRevealed();

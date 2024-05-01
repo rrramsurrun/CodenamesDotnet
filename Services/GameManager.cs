@@ -93,7 +93,8 @@ namespace Codenames.Services
       List<string> shuffledWords = new(words);
       Shuffle.ShuffleList(shuffledWords);
       //Many words are different colours between players      
-      List<string> player1Colours = ["black",
+      List<string> player1Colours = [
+        "black",
         "cream",
         "cream",
         "cream",
@@ -118,7 +119,7 @@ namespace Codenames.Services
         "cream",
         "cream",
         "black"];
-      List<string> player2Colours = ["black",
+      List<string> player2Colours = [
         "green",
         "green",
         "green",
