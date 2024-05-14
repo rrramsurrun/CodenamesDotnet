@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Codenames.Models;
 using Codenames.Services;
 using Codenames.Websocket;
+using Microsoft.AspNetCore.SpaServices.StaticFiles;
 
 namespace Codenames.Extensions
 {

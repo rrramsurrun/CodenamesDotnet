@@ -52,12 +52,9 @@ namespace Codenames.Websocket
         await socketHandler.SendErrorMessage(ws, "InvalidRequestError", InvalidRequestMessage);
         return;
       }
-      Console.WriteLine("Received message of type " + msg.RequestType);
-      Console.WriteLine(msg.Body);
       switch (msg.RequestType)
       {
         case "newGame":
-          Console.WriteLine("Creating new game");
           await NewGame(ws, msg.Body["role"], msg.Body["nickname"], msg.Body["playercount"]);
           break;
         case "joinGame":

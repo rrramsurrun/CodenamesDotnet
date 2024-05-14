@@ -17,6 +17,7 @@ namespace Codenames.Controller
 
   public class CodenamesController : ControllerBase
   {
+
     private readonly GameManager gameManager;
     private readonly MessageHandler _messageHandler;
     public CodenamesController(SocketHandler socketHandler, GameService gameService)
@@ -25,7 +26,7 @@ namespace Codenames.Controller
       _messageHandler = new MessageHandler(socketHandler, gameManager);
     }
 
-    [Route("/codenames")]
+    [Route("/codenamesSocket")]
     public async Task ManageWebsockets()
     {
       if (HttpContext.WebSockets.IsWebSocketRequest)

@@ -206,7 +206,6 @@ namespace Codenames.Models
     }
     private void CheckWinStatus2Player()
     {
-      Console.WriteLine(Revealed2Player);
       if (Revealed2Player.Where(x => x[0].Equals("green") || x[1].Equals("green")).Count() == 14)
       {
         Win = "win";

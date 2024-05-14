@@ -39,11 +39,11 @@ namespace Codenames.Websocket
       SocketOutMessage updateGame = new("updateGame", updateGameDTO);
       List<int> hashcodes = game.UserIds;
       //Message all sockets in the same room
-      foreach (var socket in connections)
+      List<WebSocket> connectionsSnapshot = new List<WebSocket>(connections);
+      foreach (var socket in connectionsSnapshot)
       {
         if (hashcodes.Contains(socket.GetHashCode()))
         {
-          Console.WriteLine("Broadcasting update to " + socket.GetHashCode());
           await Emit(socket, updateGame);
         }
       }
@@ -52,7 +52,8 @@ namespace Codenames.Websocket
     {
       List<int> hashcodes = game.UserIds;
       //Message all sockets in the same room
-      foreach (var socket in connections)
+      List<WebSocket> connectionsSnapshot = new List<WebSocket>(connections);
+      foreach (var socket in connectionsSnapshot)
       {
         if (hashcodes.Contains(socket.GetHashCode()))
         {
